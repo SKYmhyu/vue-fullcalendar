@@ -19,11 +19,16 @@
     </fc-header>
     <!-- body display date day and events -->
     <fc-body :current-date="currentDate" :events="events" :month-names="monthNames" 
-      :week-names="weekNames" :first-day="firstDay"
+      :week-names="weekNames" :first-day="firstDay" :showDialog="showDialog"
       @eventclick="emitEventClick" @dayclick="emitDayClick"
+      @close="close"
       @moreclick="emitMoreClick">
       <div slot="body-card">
         <slot name="fc-body-card">
+        </slot>
+      </div>
+      <div slot="body-dialog">
+        <slot name="dialog">
         </slot>
       </div>
     </fc-body>
@@ -37,6 +42,10 @@
       events : { // events will be displayed on calendar
         type : Array,
         default : []
+      },
+      showDialog  : {
+        type: Boolean,
+        default : false,
       },
       lang : {
         type : String,
@@ -77,9 +86,9 @@
     },
     methods : {
       emitChangeMonth (start, end, currentStart, current) {
-        console.log('currentDate 2', this.currentDate)
+        // console.log('currentDate 2', this.currentDate)
         this.currentDate = current
-        console.log('currentDate 3', this.currentDate)
+        // console.log('currentDate 3', this.currentDate)
         this.$emit('changeMonth', start, end, currentStart)
       },
       emitEventClick (event, jsEvent, pos) {
@@ -90,7 +99,10 @@
       },
       emitMoreClick (day, events, jsEvent) {
         this.$emit('moreClick', day, event, jsEvent)
-      }
+      },
+      close() {
+        this.$emit('close', false);
+      },
     },
     components : {
       'fc-body'   : require('./components/body'),
@@ -104,7 +116,8 @@
     // font-family: "elvetica neue", tahoma, "hiragino sans gb";
     padding:20px;
     background: #fff;
-    max-width: 960px;
+    // max-width: 960px;
+    max-width: 100%;
     margin:0 auto;
     ul,p{
       margin:0;

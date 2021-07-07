@@ -1,12 +1,12 @@
 <template>
-  <div class="full-calendar-body">
+  <div class="full-calendar-body" ref="calendarbody">
     <div class="weeks">
-      <strong class="week" v-for="week in weekNames">{{week}}</strong>
+      <strong class="week" v-for="week, wIndex in weekNames" :key="wIndex">{{week}}</strong>
     </div>
     <div class="dates" ref="dates">
       <div class="dates-bg">
-        <div class="week-row" v-for="week in currentDates">
-          <div class="day-cell" v-for="day in week"
+        <div class="week-row" v-for="week, wIndex in currentDates" :key="wIndex">
+          <div class="day-cell" v-for="day, dIndex in week" :key="dIndex"
             :class="{'today' : day.isToday,
               'not-cur-month' : !day.isCurMonth}">
             <p class="day-number">{{day.monthDay}}</p>
@@ -16,24 +16,26 @@
 
       <!-- absolute so we can make dynamic td -->
       <div class="dates-events">
-        <div class="events-week" v-for="week in currentDates">
-          <div class="events-day" v-for="day in week" track-by="$index"
+        <div class="events-week" v-for="week, wIndex in currentDates" :key="wIndex">
+          <div class="events-day" v-for="day, dIndex in week" track-by="$index" :key="dIndex"
             :class="{'today' : day.isToday,
               'not-cur-month' : !day.isCurMonth}" @click.stop="dayClick(day.date, $event)">
             <p class="day-number">{{day.monthDay}}</p>
             <div class="event-box">
-              <p class="event-item" v-for="event in day.events" v-show="event.cellIndex <= eventLimit"
+              <p class="event-item" v-for="event, eIndex in day.events" :key="eIndex" v-show="event.cellIndex <= eventLimit"
                  :class="[classNames(event.cssClass), {
                   'is-start'   : isStart(event.start, day.date),
                   'is-end'     : isEnd(event.end,day.date),
                   'is-opacity' : !event.isShow
                   }]" 
-                @click="eventClick(event,$event)">
+                  :style="{'background-color': `${event.color} !important`}"
+                @click="eventClick(event,$event)" :title="event.title">
+                <span class="level-icon" v-if="isBegin(event, day.date, day.weekDay) != '　'">✔</span>
                 {{isBegin(event, day.date, day.weekDay)}}
               </p>
               <p v-if="day.events.length > eventLimit"
                 class="more-link" @click.stop="selectThisDay(day, $event)">
-                + {{day.events[day.events.length -1].cellIndex - eventLimit}} more
+                + {{day.events[day.events.length -1].cellIndex - eventLimit}} 更多
               </p>
             </div>
           </div>
@@ -44,17 +46,29 @@
       <div class="more-events" v-show="showMore"
         :style="{left: morePos.left + 'px', top: morePos.top + 'px'}">
         <div class="more-header">
-          <span class="title">{{moreTitle(selectDay.date)}}</span>
-          <span class="close" @click.stop="showMore = false">x</span>
+          <span class="more-title">{{moreTitle(selectDay.date)}}</span>
+          <span class="more-close" @click.stop="showMore = false">x</span>
         </div>
         <div class="more-body">
           <ul class="body-list">
-            <li v-for="event in selectDay.events"
+            <li v-for="event, eIndex in selectDay.events" :key="eIndex"
               v-show="event.isShow" class="body-item"
               @click="eventClick(event,$event)">
               {{event.title}}
             </li>
           </ul>
+        </div>
+      </div>
+
+      <div class="add-edit-dialog" v-show="showDialog"
+        :style="{left: dialogPos.left + 'px', top: dialogPos.top + 'px'}">
+        <div class="add-edit-header">
+          <span class="dialog-title">{{ dialogTitle }}</span>
+          <span class="dialog-close" @click.stop="close">x</span>
+        </div>
+        <div class="add-edit-body">
+          <slot name="body-dialog">
+          </slot>
         </div>
       </div>
 
@@ -76,6 +90,10 @@
         type : Array,
         default : []
       },
+      showDialog  : {
+        type: Boolean,
+        default : false,
+      },
       monthNames  : {},
       firstDay    : {}
     },
@@ -92,9 +110,14 @@
         weekMask : [1,2,3,4,5,6,7],
         // events : [],
         isLismit : true,
-        eventLimit : 3,
+        eventLimit : 2,
         showMore : false,
+        dialogTitle: undefined,
         morePos : {
+          top: 0,
+          left : 0
+        },
+        dialogPos : {
           top: 0,
           left : 0
         },
@@ -103,7 +126,7 @@
     },
     watch : {
       weekNames (val) {
-        console.log('watch weekNames', val)
+        // console.log('watch weekNames', val)
       }
     },
     computed : {
@@ -239,16 +262,53 @@
         }
       },
       dayClick(day, jsEvent) {
+        this.dialogPos = this.computePos(jsEvent.target)
+        
+        let screenWidth = this.$refs.calendarbody.clientWidth + 40;
+        let screenHeight = this.$refs.calendarbody.clientHeight + 120;
+      
+        if ((this.dialogPos.left + 340) > screenWidth) {
+          this.dialogPos.left -= 280;
+        } else {
+          this.dialogPos.left += 60
+        }
+        console.log(screenHeight, this.dialogPos.top);
+        if ((this.dialogPos.top + 420) > screenHeight) {
+          this.dialogPos.top -= 480
+        } else {
+          this.dialogPos.top -= 120
+        }
+
+        this.dialogTitle = '新增日程';
         this.$emit('dayclick', day, jsEvent)
       },
       eventClick(event, jsEvent) {
         if (!event.isShow) {
           return
         }
+        this.dialogPos = this.computePos(jsEvent.target)
+
+        let screenWidth = this.$refs.calendarbody.clientWidth + 40;
+        let screenHeight = this.$refs.calendarbody.clientHeight + 120;
+
+        if ((this.dialogPos.left + 340) > screenWidth) {
+          this.dialogPos.left -= 280;
+        } else {
+          this.dialogPos.left += 60
+        }
+        if ((this.dialogPos.top + 420) > screenHeight) {
+          this.dialogPos.top -= 480
+        } else {
+          this.dialogPos.top -= 120
+        }
+        this.dialogTitle = '查看日程';
         jsEvent.stopPropagation()
         let pos = this.computePos(jsEvent.target)
         this.$emit('eventclick', event, jsEvent, pos)
-      }
+      },
+      close() {
+        this.$emit('close', false);
+      },
     }
   }
 </script>
@@ -275,7 +335,7 @@
       display: flex;
       .day-cell{
         flex:1;
-        min-height: 100px;
+        min-height: 120px;
         padding:4px;
         border-right:1px solid #e0e0e0;
         border-bottom:1px solid #e0e0e0;
@@ -283,7 +343,7 @@
           text-align: right;
         }
         &.today{
-          background-color:#fcf8e3;
+          background-color:#eef5ff;
         }
         &.not-cur-month{
           .day-number{
@@ -303,7 +363,7 @@
         .events-day{
           cursor: pointer;
           flex:1;
-          min-height: 109px;
+          min-height: 130px;
           overflow: hidden;
           text-overflow: ellipsis;
           .day-number{
@@ -324,23 +384,30 @@
               margin-bottom:2px;
               color: rgba(0,0,0,.87);
               padding:0 0 0 4px;
-              height: 18px;
-              line-height: 18px;
+              height: 36px;
+              line-height: 36px;
               white-space: nowrap;
               overflow: hidden;
               text-overflow: ellipsis;
               &.is-start{
                 margin-left: 4px;
-                // border-top-left-radius:4px;
-                // border-bottom-left-radius:4px;
+                border-top-left-radius: 18px;
+                border-bottom-left-radius: 18px;
               }
               &.is-end{
                 margin-right: 4px;
-                // border-top-right-radius:4px;
-                // border-bottom-right-radius:4px;
+                border-top-right-radius: 18px;
+                border-bottom-right-radius: 18px;
               }
               &.is-opacity{
                 opacity: 0;
+              }
+
+              .level-icon {
+                color: #fff;
+                padding: 5px 8px;
+                background-color: #5aad73;
+                border-radius: 50%;
               }
             }
             .more-link{
@@ -367,10 +434,10 @@
         display: flex;
         align-items : center;
         font-size: 14px;
-        .title{
+        .more-title{
           flex:1;
         }
-        .close{
+        .more-close{
           margin-right: 2px;
           cursor: pointer;
           font-size: 16px;
@@ -400,6 +467,61 @@
         }
       }
     }
+
+    .add-edit-dialog{
+      position:absolute;
+      width: 340px;
+      z-index: 2;
+      border:1px solid #eee;
+      box-shadow: 0 2px 6px rgba(0,0,0,.15);
+      .add-edit-header{
+        background-color: #0068b1;
+        color: #fff;
+        padding: 10px 5px;
+        border-top-left-radius: 8px;
+        border-top-right-radius: 8px;
+        display: flex;
+        align-items : center;
+        font-size: 16px;
+        text-align: center;
+        .dialog-title{
+          flex:1;
+        }
+        .dialog-close{
+          margin-right: 2px;
+          cursor: pointer;
+          font-size: 16px;
+        }
+      }
+      .add-edit-body{
+        // height: 280px;
+        padding: 10px;
+        overflow: hidden;
+        background-color: #fff;
+        border-bottom-left-radius: 6px;
+        border-top-right-radius: 6px;
+        .body-list{
+          height: 120px;
+          padding:5px;
+          overflow: auto;
+          background-color:#fff;
+          .body-item{
+            cursor: pointer;
+            font-size:12px;
+            background-color:#C7E6FD;
+            margin-bottom:2px;
+            color: rgba(0,0,0,.87);
+            padding:0 0 0 4px;
+            height: 18px;
+            line-height: 18px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+        }
+      }
+    }
+
   }
 }
 </style>

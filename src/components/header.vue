@@ -40,7 +40,7 @@
       currentDate (val) {
         if (!val) return
         this.headDate = val
-        console.log('currentDate', val)
+        // console.log('currentDate', val)
         // this.headDate = JSON.parse(JSON.stringify(val))
       }
     },
